@@ -11,7 +11,7 @@ namespace MessageStateManagement
     {
         static void Main(string[] args)
         {
-            ConsumeFromFanoutExchange();
+            ConsumeFromDirectExchange();
         }
 
         private static void ConsumeFromHeaderExchange()
@@ -82,6 +82,50 @@ namespace MessageStateManagement
             channel.QueueBind(queueRPC, exchangeRPC, string.Empty, headerRPC);
             channel.QueueBind(queueRPCACK, exchangeRPC, string.Empty, headerRPCACK);
 
+        }
+
+        private static void ConsumeFromTopicExchange()
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            var queue = "queueStateMachineTopic";
+            var routingKey = string.Empty;
+            var connection = factory.CreateConnection();
+            var channel = connection.CreateModel();
+            var consumer = new EventingBasicConsumer(channel);
+
+            consumer.Received += (sender, e) =>
+                {
+                    var body = e.Body.ToArray();
+                    var message = Encoding.UTF8.GetString(body);
+                    Console.WriteLine($"Message: {message}");
+                };
+
+            channel.BasicConsume(queue: queue,
+                autoAck: true,
+                consumer: consumer);
+            Console.ReadLine();
+        }
+
+        private static void ConsumeFromDirectExchange()
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            var queue = "queueStateMachineDirect";
+            var routingKey = string.Empty;
+            var connection = factory.CreateConnection();
+            var channel = connection.CreateModel();
+            var consumer = new EventingBasicConsumer(channel);
+
+            consumer.Received += (sender, e) =>
+                {
+                    var body = e.Body.ToArray();
+                    var message = Encoding.UTF8.GetString(body);
+                    Console.WriteLine($"Message: {message}");
+                };
+
+            channel.BasicConsume(queue: queue,
+                autoAck: true,
+                consumer: consumer);
+            Console.ReadLine();
         }
     }
 }

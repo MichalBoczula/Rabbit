@@ -10,7 +10,7 @@ namespace CreateOrder
     {
         static void Main(string[] args)
         {
-            SetUpConsumerCompetitionPattern();
+            SetUpDirect();
             while (true)
             {
                 Console.WriteLine("Choose actio bro;\n 1. Publish message.\n 2. Close App");
@@ -22,10 +22,7 @@ namespace CreateOrder
                         var name = Console.ReadLine();
                         Console.WriteLine("Input product quantity");
                         var msg = Console.ReadLine();
-                        for(int  i = 0; i < 10; i++)
-                        {
-                            PublishMessageConsumerCompetitionPattern($"{name} {i}", msg);
-                        }
+                        PublishMessageDirect(name, msg);
                         break;
                     case "2":
                         Console.WriteLine("Application closed");
@@ -111,11 +108,10 @@ namespace CreateOrder
                          body: body);
         }
 
-        public static void SetUpFanoutAndDirect()
+        public static void SetUpFanout()
         {
             var factory = new ConnectionFactory() { HostName = "localhost" };
             var exchange = "CodingDojoExchangeFanout";
-            var exchange2 = "CodingDojoExchangeDirect";
             var queueAccountant = "queueAccountantFanout";
             var queueWarehouse = "queueWarehouseFanout";
             var queueStateMachine = "queueStateMachineFanout";
@@ -136,7 +132,7 @@ namespace CreateOrder
 
         }
 
-        public static void PublishMessageFanoutAndDirect(string name, string msg)
+        public static void PublishMessageFanout(string name, string msg)
         {
             var factory = new ConnectionFactory() { HostName = "localhost" };
             var exchange = "CodingDojoExchangeFanout";
@@ -163,6 +159,109 @@ namespace CreateOrder
                          routingKey: string.Empty,
                          basicProperties: props,
                          body: body);
+        }
+
+        public static void SetUpTopic()
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            var exchange = "CodingDojoExchangeTopic";
+            var queueAccountant = "queueAccountantTopic";
+            var queueWarehouse = "queueWarehouseTopic";
+            var queueStateMachine = "queueStateMachineTopic";
+
+            using var connection = factory.CreateConnection();
+            using var channel = connection.CreateModel();
+
+            channel.ExchangeDeclare(exchange, ExchangeType.Topic, true, false, null);
+            channel.QueueDeclare(queue: queueAccountant, true, false, false, null);
+            channel.QueueDeclare(queue: queueWarehouse, true, false, false, null);
+            channel.QueueDeclare(queue: queueStateMachine, true, false, false, null);
+
+            channel.QueueBind(queueAccountant, exchange, "prod.*", null);
+            channel.QueueBind(queueWarehouse, exchange, "prod.*", null);
+            channel.QueueBind(queueStateMachine, exchange, "prod.*", null);
+
+        }
+
+        public static void PublishMessageTopic(string name, string msg)
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            var exchange = "CodingDojoExchangeTopic";
+
+            using var connection = factory.CreateConnection();
+            using var channel = connection.CreateModel();
+
+            var message = new { Name = name, Message = msg };
+            var body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message));
+
+            var props = channel.CreateBasicProperties();
+
+            props.Persistent = true;
+            var correlatinoId = Guid.NewGuid().ToString();
+            props.CorrelationId = correlatinoId;
+            props.ReplyTo = "ackRPCFanout";
+
+            channel.BasicPublish(exchange: exchange,
+                routingKey: "prod.add",
+                basicProperties: props,
+                body: body);
+        }
+
+
+        public static void SetUpDirect()
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            var exchange = "CodingDojoExchangeDirect";
+            var queueAccountant = "queueAccountantDirect";
+            var queueWarehouse = "queueWarehouseDirect";
+            var queueStateMachine = "queueStateMachineDirect";
+
+            using var connection = factory.CreateConnection();
+            using var channel = connection.CreateModel();
+
+            channel.ExchangeDeclare(exchange, ExchangeType.Direct, true, false, null);
+            channel.QueueDeclare(queue: queueAccountant, true, false, false, null);
+            channel.QueueDeclare(queue: queueWarehouse, true, false, false, null);
+            channel.QueueDeclare(queue: queueStateMachine, true, false, false, null);
+
+            channel.QueueBind(queueAccountant, exchange, "Accountant", null);
+            channel.QueueBind(queueWarehouse, exchange, "Warehouse", null);
+            channel.QueueBind(queueStateMachine, exchange, "StateMachine", null);
+
+        }
+
+        public static void PublishMessageDirect(string name, string msg)
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            var exchange = "CodingDojoExchangeDirect";
+
+            using var connection = factory.CreateConnection();
+            using var channel = connection.CreateModel();
+
+            var message = new { Name = name, Message = msg };
+            var body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message));
+
+            var props = channel.CreateBasicProperties();
+
+            props.Persistent = true;
+            var correlatinoId = Guid.NewGuid().ToString();
+            props.CorrelationId = correlatinoId;
+            props.ReplyTo = "ackRPCFanout";
+
+            channel.BasicPublish(exchange: exchange,
+                routingKey: "Accountant2",
+                basicProperties: props,
+                body: body);
+
+            channel.BasicPublish(exchange: exchange,
+                routingKey: "Warehouse2",
+                basicProperties: props,
+                body: body);
+
+            channel.BasicPublish(exchange: exchange,
+                routingKey: "StateMachine2",
+                basicProperties: props,
+                body: body);
         }
 
         public static void SetUpConsumerCompetitionPattern()
